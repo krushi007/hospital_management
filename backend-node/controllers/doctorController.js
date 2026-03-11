@@ -94,6 +94,7 @@ exports.createDoctor = async (req, res) => {
     });
     const profile = await DoctorProfile.create({
       user: user._id,
+      email: email,
       department: department || null,
       specialization,
       license_no,

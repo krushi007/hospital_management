@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import ChangePasswordModal from "./ChangePasswordModal";
 
 const Layout = ({ children }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const isActive = (path) => (location.pathname === path ? "active" : "");
 
@@ -93,6 +95,13 @@ const Layout = ({ children }) => {
             </div>
           </div>
           <button
+            className="btn btn-primary btn-block btn-sm"
+            onClick={() => setIsChangePasswordOpen(true)}
+            style={{ marginTop: 15 }}
+          >
+            Change Password
+          </button>
+          <button
             className="btn btn-secondary btn-block btn-sm"
             onClick={logout}
             style={{ marginTop: 10 }}
@@ -103,6 +112,11 @@ const Layout = ({ children }) => {
       </aside>
 
       <main className="main-content">{children}</main>
+
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
     </div>
   );
 };

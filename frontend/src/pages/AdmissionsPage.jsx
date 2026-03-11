@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { admissionAPI, patientAPI, roomAPI } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
@@ -6,12 +7,14 @@ import Swal from "sweetalert2";
 
 const AdmissionsPage = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [admissions, setAdmissions] = useState([]);
   const [patients, setPatients] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState("");
+  const [admitDateFilter, setAdmitDateFilter] = useState("");
   const [form, setForm] = useState({
     patient: "",
     room: "",
@@ -20,24 +23,38 @@ const AdmissionsPage = () => {
     notes: "",
   });
 
-  const fetchAll = () => {
-    Promise.all([
-      admissionAPI.list({ status: filter || undefined }),
-      patientAPI.list(),
-      roomAPI.list({ available: "true" }),
-    ])
-      .then(([adm, pat, rm]) => {
-        setAdmissions(adm.data.results || adm.data || []);
-        setPatients(pat.data.results || pat.data || []);
-        setRooms(rm.data.results || rm.data || []);
-      })
-      .catch(() => toast.error("Failed to load data"))
-      .finally(() => setLoading(false));
+  const fetchAll = async () => {
+    setLoading(true);
+    try {
+      const [admRes, patRes, rmRes] = await Promise.all([
+        admissionAPI.list({
+          status: filter || undefined,
+          admit_date: admitDateFilter || undefined,
+        }),
+        patientAPI.list({ admission_requested: "true" }),
+        roomAPI.list({ available: "true" }),
+      ]);
+      setAdmissions(admRes.data.results || admRes.data || []);
+      setPatients(patRes.data.results || patRes.data || []);
+      setRooms(rmRes.data.results || rmRes.data || []);
+
+      // Check for incoming admitPatientId from URL link
+      const params = new URLSearchParams(location.search);
+      const pid = params.get("admitPatientId");
+      if (pid) {
+        setForm((prev) => ({ ...prev, patient: pid }));
+        setShowModal(true);
+      }
+    } catch (err) {
+      toast.error("Failed to load data");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchAll();
-  }, [filter]);
+  }, [filter, admitDateFilter]);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -57,6 +74,35 @@ const AdmissionsPage = () => {
         toast.error(`${k}: ${Array.isArray(msg[k]) ? msg[k][0] : msg[k]}`);
       } else toast.error("Failed to admit patient");
     }
+  };
+
+  const handlePrintBill = (admissionId) => {
+    // We can just open the backend URL in a new window to trigger the PDF download
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      toast.error("Authentication required to download bill");
+      return;
+    }
+
+    // Create a temporary link to download it natively via standard browser fetch with auth
+    fetch(`/api/departments/admissions/${admissionId}/bill`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to generate bill");
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Invoice_${admissionId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      })
+      .catch(() => toast.error("Unable to download the bill"));
   };
 
   const handleDischarge = async (admission) => {
@@ -192,7 +238,14 @@ const AdmissionsPage = () => {
       </div>
 
       {/* Filter */}
-      <div style={{ marginBottom: 16 }}>
+      <div
+        style={{
+          marginBottom: 16,
+          display: "flex",
+          gap: "10px",
+          alignItems: "center",
+        }}
+      >
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -204,10 +257,59 @@ const AdmissionsPage = () => {
             color: "var(--text-primary)",
           }}
         >
-          <option value="">All Admissions</option>
+          <option value="">All Admissions Status</option>
           <option value="admitted">Currently Admitted</option>
           <option value="discharged">Discharged</option>
         </select>
+        <div
+          style={{
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <span
+            style={{
+              marginRight: "10px",
+              fontSize: "0.9rem",
+              color: "var(--text-muted)",
+              fontWeight: "bold",
+            }}
+          >
+            Filter by Admit Date:
+          </span>
+          <input
+            type="date"
+            value={admitDateFilter}
+            onChange={(e) => setAdmitDateFilter(e.target.value)}
+            style={{
+              padding: "8px 14px",
+              borderRadius: "8px",
+              border: "1px solid var(--border)",
+              background: "var(--bg-input)",
+              color: "var(--text-primary)",
+              fontFamily: "inherit",
+              outline: "none",
+            }}
+          />
+          {admitDateFilter && (
+            <button
+              onClick={() => setAdmitDateFilter("")}
+              style={{
+                position: "absolute",
+                right: 30,
+                background: "none",
+                border: "none",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+                fontSize: "1rem",
+              }}
+              title="Clear date filter"
+            >
+              &times;
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -280,6 +382,23 @@ const AdmissionsPage = () => {
                         }}
                       >
                         Discharge
+                      </button>
+                    )}
+                    {a.status === "discharged" && (
+                      <button
+                        onClick={() => handlePrintBill(a.id)}
+                        style={{
+                          background: "var(--accent)",
+                          color: "#fff",
+                          border: "none",
+                          padding: "4px 12px",
+                          borderRadius: 6,
+                          cursor: "pointer",
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Print Bill
                       </button>
                     )}
                   </td>
@@ -367,6 +486,14 @@ const AdmissionsPage = () => {
                     onChange={(e) =>
                       setForm({ ...form, admit_date: e.target.value })
                     }
+                    style={{
+                      padding: "10px",
+                      borderRadius: "6px",
+                      border: "1px solid var(--border)",
+                      background: "var(--bg-input)",
+                      color: "var(--text-primary)",
+                      fontFamily: "inherit",
+                    }}
                   />
                 </div>
                 <div className="form-group">

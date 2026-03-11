@@ -20,6 +20,7 @@ const appointmentSchema = new mongoose.Schema(
       enum: ["booked", "confirmed", "in_progress", "completed", "cancelled"],
       default: "booked",
     },
+    admission_requested: { type: Boolean, default: false },
     reason: { type: String, default: "" },
     notes: { type: String, default: "" },
     created_by: {

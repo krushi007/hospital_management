@@ -57,10 +57,10 @@ export const authAPI = {
 // Department APIs
 export const departmentAPI = {
   list: () => api.get("/departments/"),
-  get: (id) => api.get(`/departments/${id}/`),
-  create: (data) => api.post("/departments/", data),
-  update: (id, data) => api.put(`/departments/${id}/`, data),
-  delete: (id) => api.delete(`/departments/${id}/`),
+  rooms: (params) => api.get("/departments/rooms", { params }),
+  admit: (data) => api.post("/departments/admissions", data),
+  admissions: (params) => api.get("/departments/admissions", { params }),
+  discharge: (id) => api.post(`/departments/admissions/${id}/discharge/`),
 };
 
 // Room APIs
@@ -107,6 +107,7 @@ export const appointmentAPI = {
   create: (data) => api.post("/appointments/", data),
   updateStatus: (id, status) =>
     api.patch(`/appointments/${id}/update_status/`, { status }),
+  requestAdmission: (id) => api.patch(`/appointments/${id}/request_admission/`),
   today: () => api.get("/appointments/today/"),
   delete: (id) => api.delete(`/appointments/${id}/`),
 };

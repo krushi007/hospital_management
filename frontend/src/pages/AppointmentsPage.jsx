@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { appointmentAPI, doctorAPI, patientAPI } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 const AppointmentsPage = () => {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
@@ -116,6 +117,16 @@ const AppointmentsPage = () => {
     }
   };
 
+  const handleRequestAdmission = async (id) => {
+    try {
+      await appointmentAPI.requestAdmission(id);
+      toast.success("Admission requested successfully");
+      fetchData();
+    } catch {
+      toast.error("Failed to request admission");
+    }
+  };
+
   if (loading)
     return (
       <div className="loading">
@@ -173,12 +184,13 @@ const AppointmentsPage = () => {
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
             style={{
-              padding: "8px 14px",
-              background: "var(--bg-input)",
+              padding: "10px",
+              borderRadius: "6px",
               border: "1px solid var(--border)",
-              borderRadius: 8,
+              background: "var(--bg-input)",
               color: "var(--text-primary)",
               fontFamily: "inherit",
+              outline: "none",
             }}
           />
           {dateFilter && (
@@ -239,41 +251,104 @@ const AppointmentsPage = () => {
                     </span>
                   </td>
                   <td>
-                    {["admin", "doctor"].includes(user?.role) && (
+                    {["admin", "doctor", "receptionist"].includes(
+                      user?.role,
+                    ) && (
                       <>
-                        {a.status === "booked" && (
+                        {["admin", "doctor"].includes(user?.role) && (
                           <>
-                            <button
-                              className="btn btn-sm btn-success"
-                              onClick={() => updateStatus(a.id, "confirmed")}
-                              style={{ marginRight: 6 }}
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              className="btn btn-sm btn-danger"
-                              onClick={() => updateStatus(a.id, "cancelled")}
-                            >
-                              Cancel
-                            </button>
+                            {a.status === "booked" && (
+                              <>
+                                <button
+                                  className="btn btn-sm btn-success"
+                                  onClick={() =>
+                                    updateStatus(a.id, "confirmed")
+                                  }
+                                  style={{ marginRight: 6 }}
+                                >
+                                  Confirm
+                                </button>
+                                <button
+                                  className="btn btn-sm btn-danger"
+                                  onClick={() =>
+                                    updateStatus(a.id, "cancelled")
+                                  }
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            )}
+                            {a.status === "confirmed" && (
+                              <button
+                                className="btn btn-sm btn-primary"
+                                onClick={() =>
+                                  updateStatus(a.id, "in_progress")
+                                }
+                              >
+                                Start
+                              </button>
+                            )}
+                            {a.status === "in_progress" && (
+                              <button
+                                className="btn btn-sm btn-success"
+                                onClick={() => updateStatus(a.id, "completed")}
+                              >
+                                Complete
+                              </button>
+                            )}
                           </>
                         )}
-                        {a.status === "confirmed" && (
-                          <button
-                            className="btn btn-sm btn-primary"
-                            onClick={() => updateStatus(a.id, "in_progress")}
+                        {(a.status === "in_progress" ||
+                          a.status === "completed") &&
+                          user?.role === "doctor" &&
+                          a.patient_id &&
+                          !a.admission_requested && (
+                            <button
+                              className="btn btn-sm btn-primary"
+                              onClick={() => handleRequestAdmission(a.id)}
+                              style={{
+                                marginLeft: 6,
+                                background: "var(--accent)",
+                                color: "#fff",
+                                border: "none",
+                              }}
+                            >
+                              Admit
+                            </button>
+                          )}
+                        {/* Pending Request Indicator for Doctors */}
+                        {user?.role === "doctor" && a.admission_requested && (
+                          <span
+                            className="badge"
+                            style={{
+                              marginLeft: 6,
+                              background: "rgba(245,158,11,0.15)",
+                              color: "#f59e0b",
+                            }}
                           >
-                            Start
-                          </button>
+                            Admit Requested
+                          </span>
                         )}
-                        {a.status === "in_progress" && (
-                          <button
-                            className="btn btn-sm btn-success"
-                            onClick={() => updateStatus(a.id, "completed")}
-                          >
-                            Complete
-                          </button>
-                        )}
+                        {/* Receptionist/Admin Process Admission Button */}
+                        {["admin", "receptionist"].includes(user?.role) &&
+                          a.admission_requested && (
+                            <button
+                              className="btn btn-sm"
+                              onClick={() =>
+                                navigate(
+                                  `/admissions?admitPatientId=${a.patient_id}`,
+                                )
+                              }
+                              style={{
+                                marginLeft: 6,
+                                background: "#f59e0b",
+                                color: "#fff",
+                                border: "none",
+                              }}
+                            >
+                              Process Admission
+                            </button>
+                          )}
                       </>
                     )}
                   </td>
@@ -450,6 +525,14 @@ const AppointmentsPage = () => {
                     onChange={(e) => setForm({ ...form, date: e.target.value })}
                     required
                     className={errors.date ? "input-error" : ""}
+                    style={{
+                      padding: "10px",
+                      borderRadius: "6px",
+                      border: "1px solid var(--border)",
+                      background: "var(--bg-input)",
+                      color: "var(--text-primary)",
+                      fontFamily: "inherit",
+                    }}
                   />
                   {errors.date && (
                     <span className="error-msg">

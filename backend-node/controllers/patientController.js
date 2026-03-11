@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const PatientProfile = require("../models/PatientProfile");
+const Appointment = require("../models/Appointment");
 
 exports.getPatients = async (req, res) => {
   try {
@@ -23,9 +24,65 @@ exports.getPatients = async (req, res) => {
           "_id first_name last_name email",
         );
     const userIds = users.map((u) => u._id);
-    const profiles = await PatientProfile.find({
-      user: { $in: userIds },
-    }).populate("user", "first_name last_name email");
+    let profileQuery = { user: { $in: userIds } };
+
+    if (req.query.require_appointment === "true") {
+      const activeAppointments = await Appointment.find({
+        status: { $in: ["booked", "confirmed", "in_progress"] },
+      }).distinct("patient");
+      profileQuery._id = { $in: activeAppointments };
+    }
+
+    if (req.query.admission_requested === "true") {
+      const requestedAppointments = await Appointment.find({
+        admission_requested: true,
+        status: { $in: ["booked", "confirmed", "in_progress", "completed"] },
+      }).distinct("patient");
+
+      if (profileQuery._id) {
+        profileQuery._id = {
+          $in: profileQuery._id.$in.filter((id) =>
+            requestedAppointments.some((rId) => rId.equals(id)),
+          ),
+        };
+      } else {
+        profileQuery._id = { $in: requestedAppointments };
+      }
+    }
+
+    if (req.query.booked_date) {
+      const dateAppointments = await Appointment.find({
+        date: req.query.booked_date,
+        status: { $in: ["booked", "confirmed", "in_progress"] },
+      }).distinct("patient");
+
+      // Intersect if we already filtered by require_appointment, otherwise just use these IDs
+      if (profileQuery._id) {
+        profileQuery._id = {
+          $in: profileQuery._id.$in.filter((id) =>
+            dateAppointments.some((dId) => dId.equals(id)),
+          ),
+        };
+      } else {
+        profileQuery._id = { $in: dateAppointments };
+      }
+    }
+
+    const profiles = await PatientProfile.find(profileQuery).populate(
+      "user",
+      "first_name last_name email",
+    );
+
+    // Fetch all active appointments for these profiles
+    const profileIds = profiles.map((p) => p._id);
+    const activeAppts = await Appointment.find({
+      patient: { $in: profileIds },
+      status: { $in: ["booked", "confirmed", "in_progress"] },
+    }).select("patient");
+    const activeApptPatientIds = new Set(
+      activeAppts.map((a) => a.patient.toString()),
+    );
+
     const result = profiles.map((p) => ({
       id: p._id,
       user_id: p.user?._id,
@@ -40,6 +97,7 @@ exports.getPatients = async (req, res) => {
       allergies: p.allergies,
       height_cm: p.height_cm,
       weight_kg: p.weight_kg,
+      has_active_appointment: activeApptPatientIds.has(p._id.toString()),
     }));
     res.json(result);
   } catch (e) {

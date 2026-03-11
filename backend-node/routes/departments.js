@@ -13,5 +13,6 @@ router.post(
   "/admissions/:id/discharge/",
   departmentController.dischargeAdmission,
 );
+router.get("/admissions/:id/bill", departmentController.downloadBill);
 
 module.exports = router;

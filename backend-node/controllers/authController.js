@@ -51,15 +51,6 @@ exports.login = async (req, res) => {
     } else {
       validPassword = await bcrypt.compare(password, user.password);
     }
-    // Fallback for demo/test credentials
-    if (
-      !validPassword &&
-      ["admin123", "doctor123", "recep123", "pharma123", "admin"].includes(
-        password,
-      )
-    ) {
-      validPassword = true;
-    }
     if (!validPassword)
       return res
         .status(401)
@@ -110,6 +101,41 @@ exports.getProfile = async (req, res) => {
     const user = await User.findById(req.user.user_id).select("-password");
     if (!user) return res.status(404).json({ detail: "Not found." });
     res.json(user);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  if (!oldPassword || !newPassword) {
+    return res
+      .status(400)
+      .json({ detail: "Please provide old and new password" });
+  }
+
+  try {
+    const user = await User.findById(req.user.user_id);
+    if (!user) {
+      return res.status(404).json({ detail: "User not found" });
+    }
+
+    let validPassword = false;
+    if (user.password.startsWith("pbkdf2_sha256$")) {
+      validPassword = await verifyDjangoPassword(oldPassword, user.password);
+    } else {
+      validPassword = await bcrypt.compare(oldPassword, user.password);
+    }
+
+    if (!validPassword) {
+      return res.status(400).json({ detail: "Incorrect old password" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    res.json({ message: "Password updated successfully" });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
