@@ -33,6 +33,7 @@ const Layout = ({ children }) => {
       { section: "AI Tools" },
       { path: "/ai/disease-finder", label: "Disease Finder", icon: "" },
       { path: "/ai/risk-analysis", label: "Risk Analysis", icon: "" },
+      { path: "/ai/diet-planner", label: "Diet Planner", icon: "" },
     ],
     receptionist: [
       { section: "Overview" },

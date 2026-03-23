@@ -51,18 +51,33 @@ exports.getDashboardStats = async (req, res) => {
         const totalOcc = rooms.reduce((s, r) => s + r.occupied, 0);
         const occupancyRate = totalCap > 0 ? ((totalOcc / totalCap) * 100).toFixed(1) : 0;
 
+        // Active Patients Today
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const todayNewPatients = await PatientProfile.countDocuments({ created_at: { $gte: startOfDay } });
+
+        // Revenue Calculations
+        const invoices = await Invoice.find({ created_at: { $gte: monthStart } });
+        const monthlyRevenue = invoices.filter(i => i.status === 'paid' || i.status === 'partial')
+                                       .reduce((sum, inv) => sum + inv.paid_amount, 0);
+                                       
+        const todayRevenue = invoices.filter(i => i.created_at >= startOfDay && (i.status === 'paid' || i.status === 'partial'))
+                                     .reduce((sum, inv) => sum + inv.paid_amount, 0);
+                                     
+        const pendingInvoices = await Invoice.countDocuments({ status: { $in: ['unpaid', 'partial'] } });
+
         res.json({
             total_patients: totalPatients,
             total_doctors: totalDoctors,
             total_departments: totalDepartments,
             today_appointments: todayAppointments,
-            today_new_patients: 0,
+            today_new_patients: todayNewPatients,
             pending_appointments: pendingAppointments,
             completed_today: completedToday,
-            monthly_revenue: 0,
-            today_revenue: 0,
+            monthly_revenue: monthlyRevenue,
+            today_revenue: todayRevenue,
             occupancy_rate: parseFloat(occupancyRate),
-            pending_invoices: 0,
+            pending_invoices: pendingInvoices,
             recent_appointments: recentFormatted,
             weekly_trend: weeklyTrend,
         });

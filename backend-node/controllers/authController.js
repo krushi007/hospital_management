@@ -40,11 +40,6 @@ exports.login = async (req, res) => {
       return res
         .status(401)
         .json({ detail: "No active account found with the given credentials" });
-    if (user.role === "patient")
-      return res
-        .status(403)
-        .json({ detail: "Patient login is not available." });
-
     let validPassword = false;
     if (user.password.startsWith("pbkdf2_sha256$")) {
       validPassword = await verifyDjangoPassword(password, user.password);
@@ -56,21 +51,28 @@ exports.login = async (req, res) => {
         .status(401)
         .json({ detail: "No active account found with the given credentials" });
 
-    const token = jwt.sign(
+    const accessToken = jwt.sign(
       { user_id: user._id.toString(), email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "1d" },
     );
-    res.json({ access: token, refresh: token });
+    const refreshToken = jwt.sign(
+      { user_id: user._id.toString(), email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" },
+    );
+    res.json({ access: accessToken, refresh: refreshToken });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 };
 
 exports.register = async (req, res) => {
-  const { email, password, first_name, last_name, role } = req.body;
+  const { email, password, first_name, last_name } = req.body;
   if (!email || !password || !first_name || !last_name)
     return res.status(400).json({ detail: "Required fields missing" });
+  if (password.length < 6)
+    return res.status(400).json({ detail: "Password must be at least 6 characters long" });
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({
@@ -79,11 +81,9 @@ exports.register = async (req, res) => {
       password: hashedPassword,
       first_name,
       last_name,
-      role: role || "patient",
+      role: "patient",
     });
-    if (!role || role === "patient") {
-      await PatientProfile.create({ user: user._id });
-    }
+    await PatientProfile.create({ user: user._id });
     res
       .status(201)
       .json({ id: user._id, message: "User registered successfully" });
@@ -112,6 +112,11 @@ exports.changePassword = async (req, res) => {
     return res
       .status(400)
       .json({ detail: "Please provide old and new password" });
+  }
+  if (newPassword.length < 6) {
+    return res
+      .status(400)
+      .json({ detail: "New password must be at least 6 characters long" });
   }
 
   try {

@@ -13,8 +13,7 @@ exports.protect = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        console.log("AUTH MIDDLEWARE - DECODED:", JSON.stringify(decoded));
-        req.user = decoded; // set user obj matching DRF decoded token
+        req.user = decoded;
         next();
     } catch (error) {
         return res.status(401).json({ detail: "Given token not valid for any token type", code: "token_not_valid", messages: [{ token_class: "AccessToken", token_type: "access", message: "Token is invalid or expired" }] });
@@ -31,6 +30,38 @@ exports.isAdmin = (req, res, next) => {
 
 exports.isAdminOrDoctor = (req, res, next) => {
     if (req.user && (req.user.role === 'admin' || req.user.role === 'doctor')) {
+        next();
+    } else {
+        res.status(403).json({ detail: "You do not have permission to perform this action." });
+    }
+};
+
+exports.isAdminOrReceptionist = (req, res, next) => {
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'receptionist')) {
+        next();
+    } else {
+        res.status(403).json({ detail: "You do not have permission to perform this action." });
+    }
+};
+
+exports.isAdminReceptionistOrDoctor = (req, res, next) => {
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'receptionist' || req.user.role === 'doctor')) {
+        next();
+    } else {
+        res.status(403).json({ detail: "You do not have permission to perform this action." });
+    }
+};
+
+exports.isDoctor = (req, res, next) => {
+    if (req.user && req.user.role === 'doctor') {
+        next();
+    } else {
+        res.status(403).json({ detail: "Only doctors can perform this action." });
+    }
+};
+
+exports.isAdminOrPharmacist = (req, res, next) => {
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'pharmacist')) {
         next();
     } else {
         res.status(403).json({ detail: "You do not have permission to perform this action." });

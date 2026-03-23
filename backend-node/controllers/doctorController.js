@@ -154,6 +154,19 @@ exports.deleteDoctor = async (req, res) => {
     const { id } = req.params;
     const profile = await DoctorProfile.findById(id);
     if (!profile) return res.status(404).json({ detail: "Not found." });
+    
+    // Check for existing appointments
+    const activeAppointments = await Appointment.countDocuments({
+      doctor: id,
+      status: { $ne: "cancelled" }
+    });
+    
+    if (activeAppointments > 0) {
+      return res.status(400).json({ 
+        error: `Cannot delete doctor. There are ${activeAppointments} appointments associated with this doctor.` 
+      });
+    }
+
     await User.findByIdAndDelete(profile.user);
     await DoctorProfile.findByIdAndDelete(id);
     res.status(204).send();

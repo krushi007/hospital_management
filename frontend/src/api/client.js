@@ -142,15 +142,18 @@ export const dashboardAPI = {
 
 // AI APIs
 export const aiAPI = {
-  predictDisease: (symptoms) => api.post("/ai/disease-predict/", { symptoms }),
-  getSymptoms: () => api.get("/ai/symptoms/"),
-  analyzeRisk: (data) => api.post("/ai/risk-analysis/", data),
-  analyzePrescription: (data) => api.post("/ai/prescription-analyze/", data),
+  predictDisease: (symptoms) => api.post("/ai_engine/predict", { symptoms }),
+  getSymptoms: () => api.get("/ai_engine/symptoms"),
+  analyzeRisk: (data) => api.post("/ai_engine/risk-analysis", data),
+  analyzePrescription: (data) => api.post("/ai_engine/analyze-prescription", data),
+  getDietPlan: (data) => api.post("/ai_engine/diet-plan", data),
+  getDietDiseases: () => api.get("/ai_engine/diet-diseases"),
 };
 
 // Pharmacy APIs
 export const pharmacyAPI = {
   listMedicines: (params) => api.get("/pharmacy/medicines/", { params }),
+  createMedicine: (data) => api.post("/pharmacy/medicines/", data),
   listOrders: (params) => api.get("/pharmacy/orders/", { params }),
   createFromPrescription: (prescriptionId) =>
     api.post("/pharmacy/orders/create_from_prescription/", {

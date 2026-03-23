@@ -23,10 +23,11 @@ import PharmacyPage from "./pages/PharmacyPage";
 import WritePrescriptionPage from "./pages/WritePrescriptionPage";
 import AIDiseaseFinder from "./pages/AIDiseaseFinder";
 import AIRiskAnalysis from "./pages/AIRiskAnalysis";
+import AIDietPlanner from "./pages/AIDietPlanner";
 
 import Layout from "./components/Layout";
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
   if (loading)
     return (
@@ -35,6 +36,11 @@ const ProtectedRoute = ({ children }) => {
       </div>
     );
   if (!user) return <Navigate to="/login" />;
+  
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/" />; // Redirect unauthorized users to dashboard
+  }
+  
   return children;
 };
 
@@ -82,7 +88,7 @@ function AppRoutes() {
       <Route
         path="/doctors"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["admin", "receptionist"]}>
             <Layout>
               <DoctorsPage />
             </Layout>
@@ -92,7 +98,7 @@ function AppRoutes() {
       <Route
         path="/patients"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["admin", "receptionist", "doctor"]}>
             <Layout>
               <PatientsPage />
             </Layout>
@@ -103,7 +109,7 @@ function AppRoutes() {
       <Route
         path="/appointments"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["admin", "receptionist", "doctor", "patient"]}>
             <Layout>
               <AppointmentsPage />
             </Layout>
@@ -113,7 +119,7 @@ function AppRoutes() {
       <Route
         path="/prescriptions"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["admin", "doctor", "pharmacist", "patient"]}>
             <Layout>
               <PrescriptionsPage />
             </Layout>
@@ -123,7 +129,7 @@ function AppRoutes() {
       <Route
         path="/billing"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["admin", "receptionist", "patient"]}>
             <Layout>
               <BillingPage />
             </Layout>
@@ -133,7 +139,7 @@ function AppRoutes() {
       <Route
         path="/departments"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["admin", "receptionist"]}>
             <Layout>
               <DepartmentsPage />
             </Layout>
@@ -143,7 +149,7 @@ function AppRoutes() {
       <Route
         path="/rooms"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["admin", "receptionist"]}>
             <Layout>
               <RoomsPage />
             </Layout>
@@ -153,7 +159,7 @@ function AppRoutes() {
       <Route
         path="/admissions"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["admin", "receptionist", "doctor", "patient"]}>
             <Layout>
               <AdmissionsPage />
             </Layout>
@@ -163,7 +169,7 @@ function AppRoutes() {
       <Route
         path="/pharmacy"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["admin", "pharmacist"]}>
             <Layout>
               <PharmacyPage />
             </Layout>
@@ -173,7 +179,7 @@ function AppRoutes() {
       <Route
         path="/write-prescription"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["doctor"]}>
             <Layout>
               <WritePrescriptionPage />
             </Layout>
@@ -183,7 +189,7 @@ function AppRoutes() {
       <Route
         path="/ai/disease-finder"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["doctor"]}>
             <Layout>
               <AIDiseaseFinder />
             </Layout>
@@ -193,9 +199,19 @@ function AppRoutes() {
       <Route
         path="/ai/risk-analysis"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["doctor"]}>
             <Layout>
               <AIRiskAnalysis />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ai/diet-planner"
+        element={
+          <ProtectedRoute allowedRoles={["doctor"]}>
+            <Layout>
+              <AIDietPlanner />
             </Layout>
           </ProtectedRoute>
         }

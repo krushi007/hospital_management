@@ -18,7 +18,27 @@ exports.getInvoices = async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 };
 
-exports.getPayments = async (req, res) => { res.json([]); };
+exports.getPayments = async (req, res) => { 
+    try {
+        const paidInvoices = await Invoice.find({ paid_amount: { $gt: 0 } })
+            .populate({ path: 'patient', populate: { path: 'user', select: 'first_name last_name' } })
+            .select('invoice_number total_amount paid_amount status updated_at patient')
+            .sort({ updated_at: -1 })
+            .limit(50);
+        
+        const result = paidInvoices.map(i => ({
+            id: i._id,
+            invoice_number: i.invoice_number,
+            amount: i.paid_amount,
+            status: i.status,
+            date: i.updated_at,
+            patient_name: i.patient?.user ? `${i.patient.user.first_name} ${i.patient.user.last_name}` : 'Unknown'
+        }));
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+};
 
 exports.createInvoice = async (req, res) => {
     try {
@@ -38,15 +58,28 @@ exports.createInvoice = async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 };
 
-exports.addPayment = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { amount } = req.body;
-        const inv = await Invoice.findById(id);
-        if (!inv) return res.status(404).json({ error: 'Invoice not found' });
-        inv.paid_amount += parseFloat(amount);
-        inv.status = inv.paid_amount >= inv.total_amount ? 'paid' : 'partial';
-        await inv.save();
-        res.status(201).json({ message: 'Payment added' });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-};
+    exports.addPayment = async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { amount } = req.body;
+            const inv = await Invoice.findById(id);
+            if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+            
+            const paymentAmount = parseFloat(amount);
+            if (isNaN(paymentAmount) || paymentAmount <= 0) {
+                return res.status(400).json({ error: 'Invalid payment amount' });
+            }
+            
+            const remainingAmount = inv.total_amount - inv.paid_amount;
+            if (paymentAmount > remainingAmount) {
+                return res.status(400).json({ 
+                    error: `Payment exceeds remaining amount due. Only ${remainingAmount.toFixed(2)} remaining.` 
+                });
+            }
+            
+            inv.paid_amount += paymentAmount;
+            inv.status = inv.paid_amount >= inv.total_amount ? 'paid' : 'partial';
+            await inv.save();
+            res.status(201).json({ message: 'Payment added' });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    };

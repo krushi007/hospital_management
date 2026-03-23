@@ -3,12 +3,26 @@ import { aiAPI } from '../api/client';
 import toast from 'react-hot-toast';
 
 const COMMON_SYMPTOMS = [
-    'Fever', 'Headache', 'Cough', 'Fatigue', 'Nausea', 'Sore Throat',
-    'Body Ache', 'Shortness of Breath', 'Chest Pain', 'Dizziness',
-    'Vomiting', 'Diarrhea', 'Runny Nose', 'Sneezing', 'Joint Pain',
-    'Abdominal Pain', 'Back Pain', 'Skin Rash', 'Weight Loss', 'Blurred Vision',
-    'Swelling', 'Frequent Urination', 'Insomnia', 'Memory Loss', 'Muscle Weakness',
-    'Numbness', 'Palpitations', 'Loss of Appetite', 'Excessive Thirst', 'Night Sweats',
+    // General
+    'Fever', 'Fatigue', 'Body Ache', 'Chills', 'Night Sweats', 'Weight Loss', 'Weight Gain', 'Loss of Appetite',
+    // Head & Neurological
+    'Headache', 'Dizziness', 'Blurred Vision', 'Memory Loss', 'Confusion', 'Fainting', 'Seizures', 'Insomnia',
+    // Respiratory
+    'Cough', 'Sore Throat', 'Shortness of Breath', 'Runny Nose', 'Sneezing', 'Wheezing', 'Chest Tightness', 'Coughing Blood',
+    // Cardiovascular
+    'Chest Pain', 'Palpitations', 'Swelling', 'Numbness', 'Cold Hands', 'Leg Pain',
+    // Digestive
+    'Nausea', 'Vomiting', 'Diarrhea', 'Constipation', 'Abdominal Pain', 'Bloating', 'Heartburn', 'Blood in Stool',
+    // Musculoskeletal
+    'Joint Pain', 'Back Pain', 'Muscle Weakness', 'Muscle Cramps', 'Stiff Neck', 'Bone Pain',
+    // Skin
+    'Skin Rash', 'Itching', 'Bruising', 'Yellowing Skin', 'Dry Skin', 'Hair Loss',
+    // Urinary & Metabolic
+    'Frequent Urination', 'Painful Urination', 'Excessive Thirst', 'Dark Urine',
+    // Mental Health
+    'Anxiety', 'Depression', 'Mood Swings', 'Irritability',
+    // Other
+    'Swollen Lymph Nodes', 'Ear Pain', 'Jaw Pain', 'Eye Redness', 'Excessive Sweating',
 ];
 
 const AIDiseaseFinder = () => {

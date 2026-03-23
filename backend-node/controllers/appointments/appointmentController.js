@@ -57,6 +57,22 @@ exports.createAppointment = async (req, res) => {
   try {
     const { patient, manual_patient_name, doctor, date, time_slot, reason } =
       req.body;
+      
+    // Check for duplicate booking
+    const existingAppt = await Appointment.findOne({
+      doctor,
+      patient,
+      date,
+      time_slot,
+      status: { $ne: "cancelled" }
+    });
+    
+    if (existingAppt) {
+      return res.status(400).json({ 
+        error: "Patient already has an appointment booked for this time slot with this doctor." 
+      });
+    }
+
     const appt = await Appointment.create({
       doctor,
       patient: patient || null,
@@ -78,6 +94,34 @@ exports.updateStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+
+    // Define allowed status transitions (can only move forward, or cancel)
+    const ALLOWED_TRANSITIONS = {
+      booked: ["confirmed", "cancelled"],
+      confirmed: ["in_progress", "cancelled"],
+      in_progress: ["completed", "cancelled"],
+      completed: [],    // Cannot change once completed
+      cancelled: [],    // Cannot change once cancelled
+    };
+
+    const appointment = await Appointment.findById(id);
+    if (!appointment) {
+      return res.status(404).json({ error: "Appointment not found" });
+    }
+
+    const currentStatus = appointment.status;
+    const allowed = ALLOWED_TRANSITIONS[currentStatus] || [];
+
+    if (!allowed.includes(status)) {
+      return res.status(400).json({
+        error: `Cannot change status from "${currentStatus}" to "${status}". ${
+          currentStatus === "completed" ? "Completed appointments cannot be modified." :
+          currentStatus === "cancelled" ? "Cancelled appointments cannot be modified." :
+          `Allowed transitions: ${allowed.join(", ") || "none"}`
+        }`
+      });
+    }
+
     await Appointment.findByIdAndUpdate(id, { status });
     res.json({ message: "Status updated" });
   } catch (e) {

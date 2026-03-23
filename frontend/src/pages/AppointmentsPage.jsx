@@ -112,8 +112,8 @@ const AppointmentsPage = () => {
       await appointmentAPI.updateStatus(id, status);
       toast.success(`Status updated to ${status}`);
       fetchData();
-    } catch {
-      toast.error("Failed to update status");
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to update status");
     }
   };
 
@@ -477,7 +477,7 @@ const AppointmentsPage = () => {
                       className={errors.patient ? "input-error" : ""}
                     >
                       <option value="">Choose registered patient...</option>
-                      {patients.map((p) => (
+                      {patients.filter(p => !p.has_active_appointment).map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.first_name} {p.last_name} ({p.email})
                         </option>

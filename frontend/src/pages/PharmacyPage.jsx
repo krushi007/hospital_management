@@ -12,12 +12,27 @@ const PharmacyPage = () => {
   const [medicines, setMedicines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [medSearch, setMedSearch] = useState("");
+  const [filterDate, setFilterDate] = useState("");
+
+  // Add Medicine Form State
+  const [showAddMed, setShowAddMed] = useState(false);
+  const [addMedLoad, setAddMedLoad] = useState(false);
+  const [medForm, setMedForm] = useState({
+    name: "",
+    generic_name: "",
+    category: "",
+    manufacturer: "",
+    price: "",
+    stock: "",
+    unit: "tablet",
+  });
 
   const fetchData = () => {
     setLoading(true);
+    const dateParam = filterDate || undefined;
     Promise.all([
-      prescriptionAPI.list(),
-      pharmacyAPI.listOrders(),
+      prescriptionAPI.list({ date: dateParam }),
+      pharmacyAPI.listOrders({ date: dateParam }),
       pharmacyAPI.listMedicines({ search: medSearch || undefined }),
     ])
       .then(([rx, ord, med]) => {
@@ -31,7 +46,8 @@ const PharmacyPage = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [filterDate]);
+
   useEffect(() => {
     if (tab === "medicines") {
       const t = setTimeout(() => {
@@ -52,6 +68,39 @@ const PharmacyPage = () => {
     } catch (err) {
       const msg = err.response?.data?.detail || "Failed to create order";
       toast.error(msg);
+    }
+  };
+
+  const handleCreateMedicine = async (e) => {
+    e.preventDefault();
+    if (!medForm.name) return toast.error("Medicine name is required");
+    setAddMedLoad(true);
+    try {
+      await pharmacyAPI.createMedicine({
+        ...medForm,
+        price: parseFloat(medForm.price) || 0,
+        stock: parseInt(medForm.stock, 10) || 0,
+      });
+      toast.success("Medicine added successfully!");
+      setShowAddMed(false);
+      setMedForm({
+        name: "",
+        generic_name: "",
+        category: "",
+        manufacturer: "",
+        price: "",
+        stock: "",
+        unit: "tablet",
+      });
+      fetchData();
+    } catch (err) {
+      toast.error(
+        err.response?.data?.error ||
+          err.response?.data?.detail ||
+          "Failed to add medicine",
+      );
+    } finally {
+      setAddMedLoad(false);
     }
   };
 
@@ -347,6 +396,62 @@ const PharmacyPage = () => {
           </button>
         ))}
       </div>
+
+      {/* Date Filter for Prescriptions and Orders */}
+      {(tab === "prescriptions" || tab === "orders") && (
+        <div
+          style={{
+            marginBottom: 16,
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          <div
+            style={{
+              background: "var(--card-bg)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-sm)",
+              padding: "4px 12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "0.85rem",
+                color: "var(--text-muted)",
+                fontWeight: 500,
+              }}
+            >
+              Filter by Date:
+            </span>
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              style={{
+                border: "none",
+                background: "transparent",
+                padding: "4px",
+                fontSize: "0.9rem",
+                color: "var(--text-primary)",
+                outline: "none",
+                colorScheme: "dark",
+              }}
+            />
+          </div>
+          {filterDate && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setFilterDate("")}
+            >
+              Clear Filter
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Prescriptions Tab */}
       {tab === "prescriptions" && (
@@ -670,13 +775,29 @@ const PharmacyPage = () => {
       {/* Medicines Tab */}
       {tab === "medicines" && (
         <>
-          <div style={{ marginBottom: 16 }}>
+          <div
+            style={{
+              marginBottom: 16,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <input
               className="search-input"
               placeholder="Search medicines..."
               value={medSearch}
               onChange={(e) => setMedSearch(e.target.value)}
+              style={{ maxWidth: 300 }}
             />
+            {canManage && (
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowAddMed(true)}
+              >
+                + Add Medicine
+              </button>
+            )}
           </div>
           <div className="table-container">
             <table>
@@ -736,6 +857,134 @@ const PharmacyPage = () => {
             </table>
           </div>
         </>
+      )}
+
+      {/* Add Medicine Modal */}
+      {showAddMed && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: 500 }}>
+            <h2>Add New Medicine</h2>
+            <form onSubmit={handleCreateMedicine}>
+              <div className="form-group">
+                <label>Medicine Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={medForm.name}
+                  onChange={(e) =>
+                    setMedForm({ ...medForm, name: e.target.value })
+                  }
+                  placeholder="e.g. Paracetamol 500mg"
+                />
+              </div>
+              <div className="form-group">
+                <label>Generic Name</label>
+                <input
+                  type="text"
+                  value={medForm.generic_name}
+                  onChange={(e) =>
+                    setMedForm({ ...medForm, generic_name: e.target.value })
+                  }
+                  placeholder="e.g. Acetaminophen"
+                />
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "16px",
+                }}
+              >
+                <div className="form-group">
+                  <label>Category</label>
+                  <input
+                    type="text"
+                    value={medForm.category}
+                    onChange={(e) =>
+                      setMedForm({ ...medForm, category: e.target.value })
+                    }
+                    placeholder="e.g. Tablet, Syrup"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Manufacturer</label>
+                  <input
+                    type="text"
+                    value={medForm.manufacturer}
+                    onChange={(e) =>
+                      setMedForm({ ...medForm, manufacturer: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gap: "16px",
+                }}
+              >
+                <div className="form-group">
+                  <label>Price (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={medForm.price}
+                    onChange={(e) =>
+                      setMedForm({ ...medForm, price: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Initial Stock</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={medForm.stock}
+                    onChange={(e) =>
+                      setMedForm({ ...medForm, stock: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Unit</label>
+                  <select
+                    value={medForm.unit}
+                    onChange={(e) =>
+                      setMedForm({ ...medForm, unit: e.target.value })
+                    }
+                  >
+                    <option value="tablet">Tablet</option>
+                    <option value="capsule">Capsule</option>
+                    <option value="syrup">Syrup</option>
+                    <option value="injection">Injection</option>
+                    <option value="cream">Cream</option>
+                    <option value="drops">Drops</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowAddMed(false)}
+                  disabled={addMedLoad}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={addMedLoad}
+                >
+                  {addMedLoad ? "Saving..." : "Save Medicine"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

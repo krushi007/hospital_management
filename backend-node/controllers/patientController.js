@@ -2,6 +2,8 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const PatientProfile = require("../models/PatientProfile");
 const Appointment = require("../models/Appointment");
+const DoctorProfile = require("../models/DoctorProfile");
+const Prescription = require("../models/Prescription");
 
 exports.getPatients = async (req, res) => {
   try {
@@ -31,6 +33,37 @@ exports.getPatients = async (req, res) => {
         status: { $in: ["booked", "confirmed", "in_progress"] },
       }).distinct("patient");
       profileQuery._id = { $in: activeAppointments };
+    }
+
+    // Filter to only show patients who have appointments/prescriptions with the logged-in doctor
+    if (req.query.my_patients === "true" && req.user && req.user.role === "doctor") {
+      const mongoose = require("mongoose");
+      const doctorProfile = await DoctorProfile.findOne({ user: req.user.user_id });
+      if (doctorProfile) {
+        const [apptPatientIds, rxPatientIds] = await Promise.all([
+          Appointment.find({ doctor: doctorProfile._id, patient: { $ne: null } }).distinct("patient"),
+          Prescription.find({ doctor: doctorProfile._id }).distinct("patient"),
+        ]);
+        // Merge unique patient IDs from both sources
+        const allIds = [...new Set([
+          ...apptPatientIds.map(id => id.toString()),
+          ...rxPatientIds.map(id => id.toString()),
+        ])];
+
+        // Only filter if the doctor has at least one patient, otherwise show all
+        if (allIds.length > 0) {
+          const mergedObjectIds = allIds.map(id => new mongoose.Types.ObjectId(id));
+          if (profileQuery._id) {
+            profileQuery._id = {
+              $in: profileQuery._id.$in.filter(id =>
+                allIds.includes(id.toString())
+              ),
+            };
+          } else {
+            profileQuery._id = { $in: mergedObjectIds };
+          }
+        }
+      }
     }
 
     if (req.query.admission_requested === "true") {
@@ -77,7 +110,7 @@ exports.getPatients = async (req, res) => {
     const profileIds = profiles.map((p) => p._id);
     const activeAppts = await Appointment.find({
       patient: { $in: profileIds },
-      status: { $in: ["booked", "confirmed", "in_progress"] },
+      status: { $in: ["booked", "confirmed", "in_progress", "completed"] },
     }).select("patient");
     const activeApptPatientIds = new Set(
       activeAppts.map((a) => a.patient.toString()),

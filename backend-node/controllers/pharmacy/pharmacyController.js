@@ -13,9 +13,51 @@ exports.getMedicines = async (req, res) => {
   }
 };
 
+exports.createMedicine = async (req, res) => {
+  try {
+    const { name, generic_name, category, manufacturer, price, stock, unit } =
+      req.body;
+
+    // Check if medicine with this name already exists
+    const existing = await Medicine.findOne({
+      name: { $regex: new RegExp(`^${name}$`, "i") },
+    });
+    if (existing) {
+      return res
+        .status(400)
+        .json({ error: "Medicine with this name already exists" });
+    }
+
+    const medicine = await Medicine.create({
+      name,
+      generic_name: generic_name || "",
+      category: category || "",
+      manufacturer: manufacturer || "",
+      price: price || 0,
+      stock: stock || 0,
+      unit: unit || "tablet",
+    });
+
+    res.status(201).json(medicine);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
 exports.getPharmacyOrders = async (req, res) => {
   try {
-    const orders = await PharmacyOrder.find()
+    const filter = {};
+    const { date } = req.query;
+
+    if (date) {
+      const startDate = new Date(date);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(date);
+      endDate.setHours(23, 59, 59, 999);
+      filter.created_at = { $gte: startDate, $lte: endDate };
+    }
+
+    const orders = await PharmacyOrder.find(filter)
       .populate({
         path: "patient",
         populate: { path: "user", select: "first_name last_name" },
@@ -74,11 +116,13 @@ exports.createPharmacyOrder = async (req, res) => {
       };
     });
 
+    const initialSubtotal = items.reduce((sum, item) => sum + (item.total || 0), 0);
+
     const order = await PharmacyOrder.create({
       prescription: prescription_id,
       patient: rx.patient,
       items,
-      subtotal: 0,
+      subtotal: initialSubtotal,
     });
     res.status(201).json({ id: order._id, message: "Pharmacy order created" });
   } catch (e) {
@@ -95,26 +139,27 @@ exports.dispenseOrder = async (req, res) => {
     // ✅ Check live stock for every item before dispensing
     const outOfStock = [];
     for (const item of order.items) {
+      const requestedQty = item.quantity || 1;
       let currentStock = 0;
       if (item.medicine_id) {
         const med = await Medicine.findById(item.medicine_id).select(
           "stock name",
         );
         currentStock = med?.stock ?? 0;
-        if (currentStock <= 0)
-          outOfStock.push(item.medicine_name || med?.name || "Unknown");
+        if (currentStock < requestedQty)
+          outOfStock.push(`${item.medicine_name || med?.name || "Unknown"} (Need ${requestedQty}, have ${currentStock})`);
       } else if (item.medicine_name) {
         const med = await Medicine.findOne({ name: item.medicine_name }).select(
           "stock",
         );
         currentStock = med?.stock ?? 0;
-        if (currentStock <= 0) outOfStock.push(item.medicine_name);
+        if (currentStock < requestedQty) outOfStock.push(`${item.medicine_name} (Need ${requestedQty}, have ${currentStock})`);
       }
     }
 
     if (outOfStock.length > 0) {
       return res.status(400).json({
-        error: `Cannot dispense — the following medicines are out of stock: ${outOfStock.join(", ")}`,
+        error: `Cannot dispense — insufficient stock for: ${outOfStock.join(", ")}`,
       });
     }
 

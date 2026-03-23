@@ -1,14 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const prescriptionController = require('../controllers/prescriptions/prescriptionController');
-const { protect } = require('../middleware/auth');
+const { protect, isDoctor, isAdminOrPharmacist } = require('../middleware/auth');
 
 router.use(protect);
 
 
+// Doctors, Pharmacists, and Admins can view prescriptions
 router.get('/', prescriptionController.getPrescriptions);
-router.post('/', prescriptionController.createPrescription);
+// Only Doctors can create prescriptions
+router.post('/', isDoctor, prescriptionController.createPrescription);
 router.get('/reports', prescriptionController.getMedicalReports);
-router.post('/:id/analyze/', prescriptionController.analyzePrescription);
+// Only Doctors should run AI analysis
+router.post('/:id/analyze/', isDoctor, prescriptionController.analyzePrescription);
 
 module.exports = router;

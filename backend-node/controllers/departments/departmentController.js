@@ -159,6 +159,15 @@ exports.createAdmission = async (req, res) => {
       return res.status(400).json({ error: "Room is currently full" });
     }
 
+    // Check if patient is already admitted
+    const existingAdmission = await Admission.findOne({
+      patient: patient,
+      status: "admitted"
+    });
+    if (existingAdmission) {
+      return res.status(400).json({ error: "Patient is already admitted to a room" });
+    }
+
     // Check if patient has an active or recently completed appointment
     const activeAppointment = await Appointment.findOne({
       patient: patient,
@@ -197,13 +206,21 @@ exports.createAdmission = async (req, res) => {
 exports.dischargeAdmission = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // First find the admission to check status
+    const existingAdmission = await Admission.findById(id);
+    if (!existingAdmission) return res.status(404).json({ error: "Admission not found" });
+    
+    // Prevent double discharge
+    if (existingAdmission.status === "discharged") {
+        return res.status(400).json({ error: "Patient is already discharged" });
+    }
+
     const admission = await Admission.findByIdAndUpdate(
       id,
       { status: "discharged", discharge_date: new Date() },
       { new: true },
     );
-    if (!admission)
-      return res.status(404).json({ error: "Admission not found" });
     await Room.findByIdAndUpdate(admission.room, { $inc: { occupied: -1 } });
     res.json({ message: "Patient discharged successfully" });
   } catch (e) {
