@@ -29,6 +29,7 @@ const PatientsPage = () => {
     height: "",
     weight: "",
     password: "patient123",
+    avatar: "",
   });
 
   const fetchPatients = () => {
@@ -65,6 +66,7 @@ const PatientsPage = () => {
       height: "",
       weight: "",
       password: "patient123",
+      avatar: "",
     });
     setEditingPatient(null);
     setErrors({});
@@ -90,8 +92,20 @@ const PatientsPage = () => {
       allergies: p.allergies || "",
       height: p.height_cm || "",
       weight: p.weight_kg || "",
+      avatar: p.avatar || "",
     });
     setShowModal(true);
+  };
+
+  const openViewModal = async (p) => {
+    try {
+      const res = await patientAPI.getEMR(p.id);
+      // Fallback: If getting the EMR gives the array, we attach the basic patient info to it
+      setViewingPatient({ ...p, emr: res.data.timeline || [] });
+    } catch (err) {
+      toast.error("Failed to load patient history");
+      setViewingPatient({ ...p, emr: [] });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -111,6 +125,7 @@ const PatientsPage = () => {
           "address",
           "emergency_contact",
           "allergies",
+          "avatar",
         ]) {
           updateData[f] = form[f] || "";
         }
@@ -293,7 +308,7 @@ const PatientsPage = () => {
                     <div style={{ display: "flex", gap: 6 }}>
                       <button
                         className="btn btn-sm"
-                        onClick={() => setViewingPatient(p)}
+                        onClick={() => openViewModal(p)}
                         style={{
                           background: "var(--info)",
                           color: "#fff",
@@ -661,6 +676,23 @@ const PatientsPage = () => {
                   </span>
                 )}
               </div>
+              <div className="form-group">
+                <label>Profile Photo URL</label>
+                <input
+                  type="url"
+                  placeholder="https://example.com/photo.jpg"
+                  value={form.avatar}
+                  onChange={(e) => setForm({ ...form, avatar: e.target.value })}
+                  className={errors.avatar ? "input-error" : ""}
+                />
+                {errors.avatar && (
+                  <span className="error-msg">
+                    {Array.isArray(errors.avatar)
+                      ? errors.avatar[0]
+                      : errors.avatar}
+                  </span>
+                )}
+              </div>
               {!editingPatient && (
                 <p
                   style={{
@@ -753,16 +785,56 @@ const PatientsPage = () => {
                   </p>
                 </div>
               </div>
-              <div
-                style={{
-                  marginTop: "1rem",
-                  paddingTop: "1rem",
-                  borderTop: "1px solid var(--border)",
-                }}
-              >
-                <p>
-                  <strong>Address:</strong> {viewingPatient.address || "—"}
-                </p>
+
+              {/* TIMELINE SECTION */}
+              <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                <h3 style={{ marginBottom: '1rem' }}>Electronic Medical Record (EMR)</h3>
+                
+                {viewingPatient.emr && viewingPatient.emr.length > 0 ? (
+                  <div className="timeline-container" style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '10px' }}>
+                    {viewingPatient.emr.map((item, idx) => (
+                      <div key={item._id} style={{ 
+                        position: 'relative', 
+                        paddingLeft: '30px', 
+                        marginBottom: '20px', 
+                        borderLeft: '2px solid var(--border)' 
+                      }}>
+                        <div style={{
+                          position: 'absolute',
+                          left: '-9px',
+                          top: '0',
+                          width: '16px',
+                          height: '16px',
+                          borderRadius: '50%',
+                          background: item.type === 'appointment' ? 'var(--info)' : 
+                                     item.type === 'prescription' ? 'var(--accent)' :
+                                     item.type === 'admission' ? 'var(--warning)' :
+                                     item.type === 'discharge' ? 'var(--success)' : 'var(--danger)',
+                          border: '3px solid var(--bg-card)'
+                        }}></div>
+                        
+                        <div style={{ background: 'var(--bg-input)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <strong style={{ fontSize: '1.1rem' }}>{item.title}</strong>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                              {new Date(item.date).toLocaleDateString()} {new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </span>
+                          </div>
+                          <p style={{ margin: '0 0 6px 0', color: 'var(--text-secondary)' }}>{item.description}</p>
+                          {item.extra && (
+                            <div style={{ background: 'var(--bg-body)', padding: '8px', borderRadius: '6px', fontSize: '0.85rem', borderLeft: '3px solid var(--border)' }}>
+                              {item.extra}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding: '20px', textAlign: 'center', background: 'var(--bg-input)', borderRadius: '8px', border: '1px dashed var(--border)' }}>
+                    <p style={{ color: 'var(--text-muted)', margin: 0 }}>No medical history found for this patient.</p>
+                  </div>
+                )}
               </div>
             </div>
             <div

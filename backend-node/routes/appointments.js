@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const appointmentController = require("../controllers/appointments/appointmentController");
-const { protect, isDoctor, isAdminOrReceptionist } = require("../middleware/auth");
+const { protect, isDoctor, isAdminOrReceptionist, isAdminReceptionistOrDoctor } = require("../middleware/auth");
 
 router.use(protect);
 
@@ -9,8 +9,8 @@ router.use(protect);
 router.get("/", appointmentController.getAppointments);
 // Receptionist/Admin creates appointments
 router.post("/", isAdminOrReceptionist, appointmentController.createAppointment);
-// Only Admin/Receptionist updates status (though doctors might too depending on flow, but usually receptionist/admin)
-router.patch("/:id/update_status/", isAdminOrReceptionist, appointmentController.updateStatus);
+// Admin/Receptionist/Doctor can update status (doctors confirm/cancel their own appointments)
+router.patch("/:id/update_status/", isAdminReceptionistOrDoctor, appointmentController.updateStatus);
 // Only doctors request admission
 router.patch("/:id/request_admission/", isDoctor, appointmentController.requestAdmission);
 

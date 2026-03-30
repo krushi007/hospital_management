@@ -1,5 +1,6 @@
 const Prescription = require("../../models/Prescription");
 const DoctorProfile = require("../../models/DoctorProfile");
+const PatientProfile = require("../../models/PatientProfile");
 
 exports.getPrescriptions = async (req, res) => {
   try {
@@ -20,6 +21,14 @@ exports.getPrescriptions = async (req, res) => {
       });
       if (!doctorProfile) return res.json([]);
       filter.doctor = doctorProfile._id;
+    }
+
+    if (req.user?.role && req.user.role.toLowerCase() === "patient") {
+      const patientProfile = await PatientProfile.findOne({
+        user: req.user.user_id,
+      });
+      if (!patientProfile) return res.json([]);
+      filter.patient = patientProfile._id;
     }
     const prescriptions = await Prescription.find(filter)
       .populate({
@@ -108,6 +117,14 @@ exports.analyzePrescription = async (req, res) => {
     const { id } = req.params;
     const rx = await Prescription.findById(id);
     if (!rx) return res.status(404).json({ error: "Prescription not found" });
+
+    // Security: If the user is a patient, they can only analyze their own prescription
+    if (req.user && req.user.role === 'patient') {
+      const patientProfile = await PatientProfile.findOne({ user: req.user.user_id });
+      if (!patientProfile || !rx.patient || patientProfile._id.toString() !== rx.patient.toString()) {
+        return res.status(403).json({ error: "You do not have permission to analyze this prescription." });
+      }
+    }
 
     // Dynamic analysis based on medications
     let score = 5;

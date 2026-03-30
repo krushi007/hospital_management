@@ -22,6 +22,8 @@ const AdmissionsPage = () => {
     reason: "",
     notes: "",
   });
+  const [showAllPatients, setShowAllPatients] = useState(false);
+
 
   const fetchAll = async () => {
     setLoading(true);
@@ -31,7 +33,8 @@ const AdmissionsPage = () => {
           status: filter || undefined,
           admit_date: admitDateFilter || undefined,
         }),
-        patientAPI.list({ admission_requested: "true" }),
+        patientAPI.list({ admission_requested: showAllPatients ? undefined : "true" }),
+
         roomAPI.list({ available: "true" }),
       ]);
       setAdmissions(admRes.data.results || admRes.data || []);
@@ -54,7 +57,8 @@ const AdmissionsPage = () => {
 
   useEffect(() => {
     fetchAll();
-  }, [filter, admitDateFilter]);
+  }, [filter, admitDateFilter, showAllPatients]);
+
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -260,7 +264,9 @@ const AdmissionsPage = () => {
           <option value="">All Admissions Status</option>
           <option value="admitted">Currently Admitted</option>
           <option value="discharged">Discharged</option>
+          <option value="admission_requested">Admission Requested</option>
         </select>
+
         <div
           style={{
             position: "relative",
@@ -340,8 +346,9 @@ const AdmissionsPage = () => {
                   <td>{a.room_number}</td>
                   <td>{a.room_type}</td>
                   <td>{a.department_name}</td>
-                  <td>{a.admit_date}</td>
-                  <td>{a.discharge_date || "—"}</td>
+                  <td>{new Date(a.admit_date).toLocaleDateString()}</td>
+                  <td>{a.discharge_date ? new Date(a.discharge_date).toLocaleDateString() : "—"}</td>
+
                   <td>
                     <strong>{a.total_days || 0}</strong>
                   </td>
@@ -452,7 +459,19 @@ const AdmissionsPage = () => {
                     </option>
                   ))}
                 </select>
+                <div style={{ marginTop: 8, fontSize: "0.85rem", display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    id="showAllPatients"
+                    checked={showAllPatients}
+                    onChange={(e) => setShowAllPatients(e.target.checked)}
+                  />
+                  <label htmlFor="showAllPatients" style={{ cursor: "pointer", color: "var(--text-muted)" }}>
+                    Show all registered patients (ignore doctor request requirement)
+                  </label>
+                </div>
               </div>
+
               <div className="form-group">
                 <label>Room * (available only)</label>
                 <select

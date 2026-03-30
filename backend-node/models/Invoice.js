@@ -10,6 +10,20 @@ const invoiceItemSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const paymentSchema = new mongoose.Schema(
+  {
+    amount: { type: Number, required: true },
+    method: {
+      type: String,
+      enum: ["cash", "card", "upi", "insurance", "bank_transfer"],
+      default: "cash",
+    },
+    transaction_id: { type: String, default: "" },
+    date: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
 const invoiceSchema = new mongoose.Schema(
   {
     invoice_number: { type: String, unique: true },
@@ -35,6 +49,7 @@ const invoiceSchema = new mongoose.Schema(
     discount: { type: Number, default: 0 },
     total_amount: { type: Number, default: 0 },
     paid_amount: { type: Number, default: 0 },
+    payments: { type: [paymentSchema], default: [] },
     status: {
       type: String,
       enum: ["unpaid", "paid", "partial", "cancelled"],
@@ -48,12 +63,11 @@ const invoiceSchema = new mongoose.Schema(
 );
 
 // Auto-generate invoice number
-invoiceSchema.pre("save", async function (next) {
+invoiceSchema.pre("save", async function () {
   if (!this.invoice_number) {
     const count = await mongoose.model("Invoice").countDocuments();
     this.invoice_number = `INV-${String(count + 1).padStart(4, "0")}`;
   }
-  next();
 });
 
 module.exports = mongoose.model("Invoice", invoiceSchema);

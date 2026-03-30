@@ -52,6 +52,7 @@ export const authAPI = {
   updateProfile: (data) => api.patch("/auth/profile/", data),
   changePassword: (data) => api.post("/auth/change-password/", data),
   getUsers: (params) => api.get("/auth/users/", { params }),
+  forgotPassword: (data) => api.post("/auth/forgot-password/", data),
 };
 
 // Department APIs
@@ -95,6 +96,7 @@ export const patientAPI = {
   list: (params) => api.get("/patients/", { params }),
   get: (id) => api.get(`/patients/${id}/`),
   getMe: () => api.get("/patients/me/"),
+  getEMR: (id) => api.get(`/patients/${id}/emr/`),
   create: (data) => api.post("/patients/", data),
   update: (id, data) => api.put(`/patients/${id}/`, data),
   delete: (id) => api.delete(`/patients/${id}/`),
@@ -140,6 +142,14 @@ export const dashboardAPI = {
   getStats: () => api.get("/dashboard/stats/"),
 };
 
+// Leave APIs
+export const leaveAPI = {
+  list: (params) => api.get("/leaves/", { params }),
+  request: (data) => api.post("/leaves/", data),
+  updateStatus: (id, status) => api.patch(`/leaves/${id}`, { status }),
+  delete: (id) => api.delete(`/leaves/${id}`),
+};
+
 // AI APIs
 export const aiAPI = {
   predictDisease: (symptoms) => api.post("/ai_engine/predict", { symptoms }),
@@ -161,6 +171,21 @@ export const pharmacyAPI = {
     }),
   dispense: (id) => api.post(`/pharmacy/orders/${id}/dispense/`),
   deleteOrder: (id) => api.delete(`/pharmacy/orders/${id}`),
+};
+
+// Lab APIs
+export const labAPI = {
+  list: (params) => api.get("/labs/", { params }),
+  request: (data) => api.post("/labs/", data),
+  update: (id, data) => api.patch(`/labs/${id}/`, data),
+  delete: (id) => api.delete(`/labs/${id}/`),
+};
+
+// Notification APIs
+export const notificationAPI = {
+  list: () => api.get("/notifications/"),
+  markAsRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.patch("/notifications/read-all"),
 };
 
 export default api;

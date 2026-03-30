@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { appointmentAPI, doctorAPI, patientAPI } from "../api/client";
+import { appointmentAPI, doctorAPI, patientAPI, leaveAPI } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 
@@ -11,6 +11,7 @@ const AppointmentsPage = () => {
   const [appointments, setAppointments] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
+  const [doctorLeaves, setDoctorLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
@@ -67,6 +68,18 @@ const AppointmentsPage = () => {
   useEffect(() => {
     fetchData();
   }, [statusFilter, dateFilter]);
+
+  useEffect(() => {
+    if (form.doctor) {
+      leaveAPI.list({ doctor: form.doctor })
+        .then(res => {
+           setDoctorLeaves(res.data.filter(l => l.status === 'approved').map(l => l.date));
+        })
+        .catch(() => {});
+    } else {
+      setDoctorLeaves([]);
+    }
+  }, [form.doctor]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -539,6 +552,11 @@ const AppointmentsPage = () => {
                       {Array.isArray(errors.date)
                         ? errors.date[0]
                         : errors.date}
+                    </span>
+                  )}
+                  {doctorLeaves.includes(form.date) && (
+                    <span className="error-msg" style={{color: 'var(--danger)', fontSize: '0.8rem', display: 'block', marginTop: '4px'}}>
+                      Doctor is on approved leave on this date.
                     </span>
                   )}
                 </div>

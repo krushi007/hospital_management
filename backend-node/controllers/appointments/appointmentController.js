@@ -1,5 +1,8 @@
 const Appointment = require("../../models/Appointment");
 const DoctorProfile = require("../../models/DoctorProfile");
+const PatientProfile = require("../../models/PatientProfile");
+const LeaveRequest = require("../../models/LeaveRequest");
+const { createNotification } = require("../notificationController");
 
 exports.getAppointments = async (req, res) => {
   try {
@@ -15,6 +18,15 @@ exports.getAppointments = async (req, res) => {
       });
       if (!doctorProfile) return res.json([]);
       filter.doctor = doctorProfile._id;
+    }
+
+    // Patient: filter by their own profile
+    if (req.user?.role && req.user.role.toLowerCase() === "patient") {
+      const patientProfile = await PatientProfile.findOne({
+        user: req.user.user_id,
+      });
+      if (!patientProfile) return res.json([]);
+      filter.patient = patientProfile._id;
     }
 
     const appointments = await Appointment.find(filter)
@@ -57,6 +69,19 @@ exports.createAppointment = async (req, res) => {
   try {
     const { patient, manual_patient_name, doctor, date, time_slot, reason } =
       req.body;
+
+    // Check for approved leave overlap
+    const existingLeave = await LeaveRequest.findOne({
+      doctor,
+      date: new Date(date),
+      status: "approved"
+    });
+
+    if (existingLeave) {
+      return res.status(400).json({
+        error: "Doctor is unavailable on this date due to approved leave."
+      });
+    }
       
     // Check for duplicate booking
     const existingAppt = await Appointment.findOne({
@@ -82,6 +107,18 @@ exports.createAppointment = async (req, res) => {
       reason: reason || "",
       created_by: req.user?.user_id || null,
     });
+    // Notify the assigned doctor
+    const doctorProfile = await DoctorProfile.findById(doctor).populate('user');
+    if (doctorProfile?.user) {
+      const patientName = manual_patient_name || 'a registered patient';
+      await createNotification(
+        doctorProfile.user._id,
+        `New appointment booked for ${patientName} on ${date} at ${time_slot}.`,
+        'appointment',
+        '/appointments'
+      );
+    }
+
     res
       .status(201)
       .json({ id: appt._id, message: "Appointment created successfully" });
@@ -136,8 +173,22 @@ exports.requestAdmission = async (req, res) => {
       id,
       { admission_requested: true },
       { new: true },
-    );
+    ).populate({ path: 'patient', populate: { path: 'user', select: 'first_name last_name' } });
     if (!appt) return res.status(404).json({ error: "Appointment not found" });
+
+    // Notify all admins via a general notification (stored for the booking user)
+    const patientName = appt.patient?.user
+      ? `${appt.patient.user.first_name} ${appt.patient.user.last_name}`
+      : appt.manual_patient_name || 'a patient';
+    if (req.user?.user_id) {
+      await createNotification(
+        req.user.user_id,
+        `Admission requested for ${patientName}. Waiting for receptionist to process.`,
+        'admission',
+        '/admissions'
+      );
+    }
+
     res.json({ message: "Admission requested successfully" });
   } catch (e) {
     res.status(500).json({ error: e.message });

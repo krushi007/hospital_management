@@ -36,6 +36,9 @@ app.use('/api/billing', require('./routes/billing'));
 app.use('/api/prescriptions', require('./routes/prescriptions'));
 app.use('/api/departments', require('./routes/departments'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/labs', require('./routes/labs'));
+app.use('/api/leaves', require('./routes/leaves'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => console.log(`Server is running on port ${PORT}.`));

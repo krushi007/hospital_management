@@ -100,14 +100,14 @@ exports.getAdmissions = async (req, res) => {
       query.admit_date = { $gte: startOfDay, $lte: endOfDay };
     }
 
-    if (status) {
+    if (status && status !== "admission_requested") {
       query.status = status;
     }
 
-    const admissions = await Admission.find(query)
+    let admissions = await Admission.find(query)
       .populate({
         path: "patient",
-        populate: { path: "user", select: "first_name last_name" },
+        populate: { path: "user", select: "first_name last_name email" },
       })
       .populate({
         path: "room",
@@ -115,6 +115,7 @@ exports.getAdmissions = async (req, res) => {
         populate: { path: "department", select: "name" },
       })
       .sort({ admit_date: -1 });
+
     const result = admissions.map((a) => {
       const end_date = a.discharge_date || new Date();
       const diffTime = Math.abs(end_date - new Date(a.admit_date));
@@ -127,9 +128,11 @@ exports.getAdmissions = async (req, res) => {
         id: a._id,
         patient_name: a.patient?.user
           ? `${a.patient.user.first_name} ${a.patient.user.last_name}`
-          : "",
-        room_number: a.room?.room_number || "",
-        room_type: a.room?.room_type || "",
+          : "Unknown",
+        patient_id: a.patient?._id,
+        room_number: a.room?.room_number || "—",
+        room_type: a.room?.room_type || "—",
+        department_name: a.room?.department?.name || "—",
         rate_per_day: rate_per_day,
         total_days: total_days,
         total_amount: total_amount,
@@ -140,6 +143,46 @@ exports.getAdmissions = async (req, res) => {
         notes: a.notes,
       };
     });
+
+    if (!status || status === "admission_requested") {
+      const pendingRequests = await Appointment.find({
+        admission_requested: true,
+        status: { $ne: "cancelled" }
+      }).populate({
+        path: "patient",
+        populate: { path: "user", select: "first_name last_name email" }
+      });
+
+      pendingRequests.forEach((req) => {
+          // Only add if not already admitted (just in case flag was stale)
+          const alreadyAdmitted = admissions.some(adm => 
+            adm.patient?._id?.toString() === req.patient?._id?.toString() && 
+            adm.status === "admitted"
+          );
+          
+          if (!alreadyAdmitted) {
+              result.push({
+                  id: req._id,
+                  is_request: true,
+                  patient_name: req.patient?.user
+                      ? `${req.patient.user.first_name} ${req.patient.user.last_name}`
+                      : (req.manual_patient_name || "Unknown"),
+                  patient_id: req.patient?._id,
+                  room_number: "WAITING",
+                  room_type: "—",
+                  department_name: "WAITING",
+                  rate_per_day: 0,
+                  total_days: 0,
+                  total_amount: 0,
+                  admit_date: req.date,
+                  status: "admission_requested",
+                  reason: req.reason || "Admission Required",
+                  notes: "Requested by Doctor"
+              });
+          }
+      });
+    }
+
     res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -222,6 +265,13 @@ exports.dischargeAdmission = async (req, res) => {
       { new: true },
     );
     await Room.findByIdAndUpdate(admission.room, { $inc: { occupied: -1 } });
+
+    // Clear ALL admission_requested flags for this patient so they don't re-appear in the dropdown
+    await Appointment.updateMany(
+      { patient: existingAdmission.patient, admission_requested: true },
+      { $set: { admission_requested: false } }
+    );
+
     res.json({ message: "Patient discharged successfully" });
   } catch (e) {
     res.status(500).json({ error: e.message });

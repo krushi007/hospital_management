@@ -6,7 +6,7 @@ const Appointment = require("../models/Appointment");
 exports.getDoctors = async (req, res) => {
   try {
     const doctors = await DoctorProfile.find()
-      .populate("user", "first_name last_name email phone")
+      .populate("user", "first_name last_name email phone avatar")
       .populate("department", "name");
 
     const result = await Promise.all(
@@ -37,6 +37,7 @@ exports.getDoctors = async (req, res) => {
           department: d.department?._id || null,
           pending_appointments: pending,
           ongoing_appointments: ongoing,
+          avatar: d.user?.avatar,
         };
       }),
     );
@@ -49,7 +50,7 @@ exports.getDoctors = async (req, res) => {
 exports.getDoctorById = async (req, res) => {
   try {
     const d = await DoctorProfile.findById(req.params.id)
-      .populate("user", "first_name last_name email phone")
+      .populate("user", "first_name last_name email phone avatar")
       .populate("department", "name");
     if (!d) return res.status(404).json({ detail: "Not found." });
     res.json({
@@ -61,6 +62,7 @@ exports.getDoctorById = async (req, res) => {
       specialization: d.specialization,
       department: d.department?._id,
       department_name: d.department?.name,
+      avatar: d.user?.avatar,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -81,6 +83,7 @@ exports.createDoctor = async (req, res) => {
       qualification,
       phone,
       password,
+      avatar,
     } = req.body;
     const hashedPassword = await bcrypt.hash(password || "doctor123", 10);
     const user = await User.create({
@@ -91,6 +94,7 @@ exports.createDoctor = async (req, res) => {
       last_name,
       role: "doctor",
       phone: phone || "",
+      avatar: avatar || "",
     });
     const profile = await DoctorProfile.create({
       user: user._id,
@@ -127,6 +131,7 @@ exports.updateDoctor = async (req, res) => {
       license_no,
       qualification,
       phone,
+      avatar,
     } = req.body;
     const profile = await DoctorProfile.findById(id);
     if (!profile) return res.status(404).json({ detail: "Not found." });
@@ -134,6 +139,7 @@ exports.updateDoctor = async (req, res) => {
       first_name,
       last_name,
       phone,
+      avatar,
     });
     await DoctorProfile.findByIdAndUpdate(id, {
       specialization,

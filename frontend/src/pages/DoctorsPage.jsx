@@ -24,6 +24,7 @@ const DoctorsPage = () => {
     fee: "",
     license_no: "",
     password: "doctor123",
+    avatar: "",
   });
 
   useEffect(() => {
@@ -74,6 +75,7 @@ const DoctorsPage = () => {
         fee: "",
         license_no: "",
         password: "doctor123",
+        avatar: "",
       });
       setErrors({});
       fetchDoctors();
@@ -103,6 +105,7 @@ const DoctorsPage = () => {
       experience_years: doc.experience_years || "",
       fee: doc.fee || "",
       license_no: doc.license_no || "",
+      avatar: doc.avatar || "",
     });
     setShowModal(true);
   };
@@ -157,6 +160,7 @@ const DoctorsPage = () => {
                 fee: "",
                 license_no: "",
                 password: "doctor123",
+                avatar: "",
               });
               setShowModal(true);
             }}
@@ -488,6 +492,23 @@ const DoctorsPage = () => {
                     {Array.isArray(errors.phone)
                       ? errors.phone[0]
                       : errors.phone}
+                  </span>
+                )}
+              </div>
+              <div className="form-group">
+                <label>Profile Photo URL</label>
+                <input
+                  type="url"
+                  placeholder="https://example.com/photo.jpg"
+                  value={form.avatar}
+                  onChange={(e) => setForm({ ...form, avatar: e.target.value })}
+                  className={errors.avatar ? "input-error" : ""}
+                />
+                {errors.avatar && (
+                  <span className="error-msg">
+                    {Array.isArray(errors.avatar)
+                      ? errors.avatar[0]
+                      : errors.avatar}
                   </span>
                 )}
               </div>

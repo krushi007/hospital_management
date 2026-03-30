@@ -35,7 +35,7 @@ exports.login = async (req, res) => {
       .json({ detail: "Please provide email and password" });
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: new RegExp(`^${email}$`, "i") });
     if (!user)
       return res
         .status(401)
@@ -141,6 +141,32 @@ exports.changePassword = async (req, res) => {
     await user.save();
 
     res.json({ message: "Password updated successfully" });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  const { email, role, newPassword } = req.body;
+  if (!email || !role || !newPassword) {
+    return res.status(400).json({ detail: "Email, role, and new password are required." });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ detail: "New password must be at least 6 characters long." });
+  }
+
+  try {
+    const user = await User.findOne({ email: new RegExp(`^${email}$`, "i"), role });
+    if (!user) {
+      return res.status(404).json({ detail: "No account found with this email and role." });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    res.json({ message: "Password has been successfully reset!" });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

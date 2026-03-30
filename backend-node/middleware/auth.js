@@ -67,3 +67,20 @@ exports.isAdminOrPharmacist = (req, res, next) => {
         res.status(403).json({ detail: "You do not have permission to perform this action." });
     }
 };
+
+exports.isPatient = (req, res, next) => {
+    if (req.user && req.user.role === 'patient') {
+        next();
+    } else {
+        res.status(403).json({ detail: "Only patients can perform this action." });
+    }
+};
+
+exports.isAdminReceptionistDoctorOrPatient = (req, res, next) => {
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'receptionist' || req.user.role === 'doctor' || req.user.role === 'patient')) {
+        next();
+    } else {
+        res.status(403).json({ detail: "You do not have permission to perform this action." });
+    }
+};
+

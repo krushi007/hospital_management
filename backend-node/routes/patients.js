@@ -20,6 +20,7 @@ router.put("/:id", isAdminOrReceptionist, patientController.updatePatient);
 router.delete("/:id", isAdmin, patientController.deletePatient); // Only admin can delete
 
 // Medical Record Routes
+router.get("/:id/emr", isAdminReceptionistOrDoctor, patientController.getPatientEMR);
 router.get(
   "/:id/records",
   isAdminOrDoctor,

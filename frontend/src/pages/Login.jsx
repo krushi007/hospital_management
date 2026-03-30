@@ -43,14 +43,15 @@ const Login = () => {
                     </button>
                 </form>
                 <p style={{ textAlign: 'center', marginTop: 20, marginBottom: 0, fontSize: '0.88rem' }}>
-                    Don't have an account? <Link to="/register">Register here</Link>
+                    <Link to="/forgot-password" style={{ color: 'var(--accent)', fontWeight: 600 }}>Forgot Password?</Link>
                 </p>
                 <div style={{ marginTop: 20, padding: 14, background: 'var(--bg-primary)', borderRadius: 8, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                     <strong style={{ color: 'var(--text-secondary)' }}>Demo Credentials:</strong><br />
                     Admin: admin@hospital.com / admin123<br />
                     Doctor: dr.sharma@hospital.com / doctor123<br />
                     Reception: reception@hospital.com / recep123<br />
-                    Pharmacist: pharmacist@hospital.com / pharma123
+                    Pharmacist: pharmacist@hospital.com / pharma123<br />
+                    Patient: patient@hospital.com / patient123
                 </div>
             </div>
         </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { prescriptionAPI } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { generatePrescriptionPDF } from '../utils/pdfGenerator';
 
 const PrescriptionsPage = () => {
     const { user } = useAuth();
@@ -66,7 +67,16 @@ const PrescriptionsPage = () => {
                 <div>
                     {selected ? (
                         <div className="card">
-                            <h3 style={{ marginBottom: 16 }}>📋 Prescription Details</h3>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                <h3 style={{ margin: 0 }}>📋 Prescription Details</h3>
+                                <button
+                                    className="btn btn-sm btn-primary"
+                                    onClick={() => generatePrescriptionPDF(selected)}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                                >
+                                    📄 Download PDF
+                                </button>
+                            </div>
                             {selected.diagnosis && <p><strong>Diagnosis:</strong> {selected.diagnosis}</p>}
                             {selected.medications && (
                                 <div style={{ marginTop: 16 }}>

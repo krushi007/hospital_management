@@ -8,7 +8,7 @@ import {
 import { Toaster } from "react-hot-toast";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
-import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import DoctorsPage from "./pages/DoctorsPage";
 import PatientsPage from "./pages/PatientsPage";
@@ -24,6 +24,8 @@ import WritePrescriptionPage from "./pages/WritePrescriptionPage";
 import AIDiseaseFinder from "./pages/AIDiseaseFinder";
 import AIRiskAnalysis from "./pages/AIRiskAnalysis";
 import AIDietPlanner from "./pages/AIDietPlanner";
+import LabsPage from "./pages/LabsPage";
+import LeavesPage from "./pages/LeavesPage";
 
 import Layout from "./components/Layout";
 
@@ -68,11 +70,21 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/register"
+        path="/forgot-password"
         element={
           <PublicRoute>
-            <Register />
+            <ForgotPassword />
           </PublicRoute>
+        }
+      />
+      <Route
+        path="/leaves"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "doctor"]}>
+            <Layout>
+              <LeavesPage />
+            </Layout>
+          </ProtectedRoute>
         }
       />
       <Route
@@ -159,9 +171,19 @@ function AppRoutes() {
       <Route
         path="/admissions"
         element={
-          <ProtectedRoute allowedRoles={["admin", "receptionist", "doctor", "patient"]}>
+          <ProtectedRoute allowedRoles={["admin", "receptionist", "doctor"]}>
             <Layout>
               <AdmissionsPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/labs"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "receptionist", "doctor"]}>
+            <Layout>
+              <LabsPage />
             </Layout>
           </ProtectedRoute>
         }
