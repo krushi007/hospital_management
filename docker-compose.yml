@@ -2,41 +2,32 @@ version: '3.8'
 
 services:
   backend:
-    build: ./backend
+    build: ./backend-node
     ports:
       - "8000:8000"
     environment:
-      - DJANGO_SECRET_KEY=docker-secret-key-change-me
-      - DJANGO_DEBUG=False
-      - DB_ENGINE=mysql
-      - DB_NAME=hospital_db
-      - DB_USER=root
-      - DB_PASSWORD=rootpassword
-      - DB_HOST=db
-      - DB_PORT=3306
+      - MONGO_URI=mongodb://db:27017/medcore
+      - PORT=8000
+      - JWT_SECRET=your-secret-key-here
     depends_on:
       - db
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py seed_data &&
-             python manage.py runserver 0.0.0.0:8000"
 
   frontend:
     build: ./frontend
     ports:
       - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
     depends_on:
       - backend
 
   db:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: hospital_db
+    image: mongo:latest
     ports:
-      - "3307:3306"
+      - "27017:27017"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mongo_data:/data/db
 
 volumes:
-  mysql_data:
+  mongo_data:
+
